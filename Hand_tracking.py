@@ -11,6 +11,9 @@ mpDraw = mp.solutions.drawing_utils
 pTime = 0
 cTime = 0
 
+success, img = cap.read()
+h, w, c = img.shape
+
 while True:
     success, img = cap.read()
     imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -19,12 +22,29 @@ while True:
 
     if results.multi_hand_landmarks:
         for handLms in results.multi_hand_landmarks:
+            x_max = 0
+            y_max = 0
+            x_min = w
+            y_min = h
             for id, lm in enumerate(handLms.landmark):
                 #print(id,lm)
                 h, w, c = img.shape
-                cx, cy = int(lm.x *w), int(lm.y*h)
-                #if id ==0:
-                cv2.circle(img, (cx,cy), 7, (255,0,255), cv2.FILLED)
+
+                x, y = int(lm.x * w), int(lm.y * h)
+                if x > x_max:
+                    x_max = x
+                if x < x_min:
+                    x_min = x
+                if y > y_max:
+                    y_max = y
+                if y < y_min:
+                    y_min = y
+
+                # cx, cy = int(lm.x *w), int(lm.y*h)
+                # if id ==0:
+                cv2.circle(img, (x, y), 7, (255, 0, 255), cv2.FILLED)
+
+            cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
 
             mpDraw.draw_landmarks(img, handLms, mpHands.HAND_CONNECTIONS)
 
