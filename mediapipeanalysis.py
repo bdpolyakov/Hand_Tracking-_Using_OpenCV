@@ -10,21 +10,16 @@ import box as bbhelper
 
 mpHands = mp.solutions.hands
 hands = mpHands.Hands()
+mpDraw = mp.solutions.drawing_utils
 def get_mediapipe_boundingbox(img):
-
-
-    mpDraw = mp.solutions.drawing_utils
-
     pTime = 0
     cTime = 0
 
-    x_min, y_min, x_max, y_max = 0, 0, 0, 0
-
-    #success, img = cap.read()
+    # success, img = cap.read()
     h, w, c = img.shape
 
-    #while True:
-        #success, img = cap.read()
+    # while True:
+    # success, img = cap.read()
     imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     results = hands.process(imgRGB)
     # print(results.multi_hand_landmarks)
@@ -64,8 +59,9 @@ def get_mediapipe_boundingbox(img):
         cv2.putText(img, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 255), 3)
 
         #cv2.imshow("Image", img)
-        #cv2.waitKey(1)
+        #cv2.waitKey(0)
         return x_min, y_min, x_max, y_max
+
 
 def sigm(x):
     return 1 / (1 + np.exp(-x) )
@@ -177,11 +173,12 @@ def get_palm_detector_bb(image):
 
     x_min, y_min, x_max, y_max = 0, 0, 0, 0
 
+    all_palm_detections = []
     for idx, detect in enumerate(candidate_detect):
         (x, y, w, h) = detect[0:4].astype(np.int32)
         print("Pad width:", pad_width, "Pad Height:", pad_height)
-        x_min = x - pad_width
-        y_min = y - pad_height
+        x_min = x - pad_width - w//2
+        y_min = y - pad_height - h//2
         x_max = x + w - pad_width
         y_max = y + h - pad_height
         cv2.rectangle(resized_image, (x_min, y_min), (x_min + w, y_min + h), (0, 255, 0), 1)
@@ -193,14 +190,14 @@ def get_palm_detector_bb(image):
         (x_min, y_min, new_w, new_h) = bbhelper.scale(bb, input_shape, output_shape)
         x_max = x_min + new_w
         y_max = y_min + new_h
-
+        all_palm_detections.append([x_min, y_min, x_max, y_max])
         #print("bb?:", (x, y, w, h))
         #padded_image = cv2.rectangle(padded_image, (x, y), (x + w, y + h), (0, 255, 0), 1)
         # cv2.rectangle(padded_image, (x, y), (x + w, y + h), (0, 255, 0), 1)
-    cv2.namedWindow("Resized Image", cv2.WINDOW_NORMAL)
-    cv2.imshow("Resized Image", resized_image)
-    cv2.waitKey()
-    return x_min, y_min, x_max, y_max
+    #cv2.namedWindow("Resized Image", cv2.WINDOW_NORMAL)
+    #cv2.imshow("Resized Image", resized_image)
+    #cv2.waitKey()
+    return all_palm_detections
 
 
 def get_closest_kitti_bb(label_name, x_min, y_min, x_max, y_max):
@@ -302,20 +299,25 @@ def drawbothbb(filename):
 
 def main():
     #drawbothbb("CARDS_COURTYARD_B_T_frame_0011.jpg")
-    img = cv2.imread("C:/development/OCULI/testing/hand-detection-tutorial/egohands_kitti_formatted/images/CARDS_COURTYARD_B_T_frame_0011.jpg")
-    palm_x_min, palm_y_min, palm_x_max, palm_y_max = get_palm_detector_bb(img)
-
-    cv2.rectangle(img, (palm_x_min, palm_y_min), (palm_x_max, palm_y_max), (0, 255, 0), 2)
+    img = cv2.imread("C:/development/OCULI/testing/hand-detection-tutorial/egohands_kitti_formatted/images/CARDS_LIVINGROOM_S_H_frame_2348.jpg") #CARDS_COURTYARD_B_T_frame_0011
+    palm_x_min, palm_y_min, palm_x_max, palm_y_max = get_palm_detector_bb(img)[0]
+    print("palm detector bb", palm_x_min, palm_y_min, palm_x_max, palm_y_max)
+    #cv2.rectangle(img, (palm_x_min, palm_y_min), (palm_x_max, palm_y_max), (0, 255, 0), 2)
 
     #cv2.imshow("Image", img)
     #cv2.waitKey()
     #cv2.imshow("image", img)
     #cv2.waitKey(1)
     x_min, y_min, x_max, y_max = get_mediapipe_boundingbox(img)
-    print(x_min, y_min, x_max, y_max)
-    kitti_x_min, kitti_y_min, kitti_x_max, kitti_y_max = get_closest_kitti_bb("C:/development/OCULI/testing/hand-detection-tutorial/egohands_kitti_formatted/labels/CARDS_COURTYARD_B_T_frame_0011.txt",x_min, y_min, x_max, y_max)
-    print(kitti_x_min, kitti_y_min, kitti_x_max, kitti_y_max)
-    print(intersection_over_union(x_min, y_min, x_max, y_max, kitti_x_min, kitti_y_min, kitti_x_max, kitti_y_max))
+    print("mp bb", x_min, y_min, x_max, y_max)
+    kitti_x_min, kitti_y_min, kitti_x_max, kitti_y_max = get_closest_kitti_bb("C:/development/OCULI/testing/hand-detection-tutorial/egohands_kitti_formatted/labels/CARDS_LIVINGROOM_S_H_frame_2348.txt",x_min, y_min, x_max, y_max)
+    print("label bb",kitti_x_min, kitti_y_min, kitti_x_max, kitti_y_max)
+    print("IOU for MP vs label",intersection_over_union(x_min, y_min, x_max, y_max, kitti_x_min, kitti_y_min, kitti_x_max, kitti_y_max))
+
+    cv2.rectangle(img, (palm_x_min, palm_y_min), (palm_x_max, palm_y_max), (255, 0, 0), 2)
+    cv2.rectangle(img, (kitti_x_min, kitti_y_min), (kitti_x_max, kitti_y_max), (0, 255, 0), 2)
+
+    print("IOU for palm vs label", intersection_over_union(palm_x_min, palm_y_min, palm_x_max, palm_y_max, kitti_x_min, kitti_y_min, kitti_x_max, kitti_y_max))
     cv2.imshow("Image", img)
     cv2.waitKey()
     #print(mean_iou())
